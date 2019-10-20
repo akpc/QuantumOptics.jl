@@ -1,6 +1,6 @@
 module steadystate
 
-using ..states, ..operators, ..operators_dense, ..superoperators
+using QuantumOpticsBase
 using ..timeevolution
 using Arpack, LinearAlgebra
 
@@ -26,13 +26,13 @@ Calculate steady state using long time master equation evolution.
         density operator `rho` is further used and therefore must not be changed.
 * `kwargs...`: Further arguments are passed on to the ode solver.
 """
-function master(H::Operator, J::Vector;
-                rho0::DenseOperator=tensor(basisstate(H.basis_l, 1), dagger(basisstate(H.basis_r, 1))),
+function master(H::AbstractOperator{B,B}, J::Vector;
+                rho0::DenseOperator{B,B}=tensor(basisstate(H.basis_l, 1), dagger(basisstate(H.basis_r, 1))),
                 hmin=1e-7, tol=1e-3,
                 rates::Union{Vector{Float64}, Matrix{Float64}, Nothing}=nothing,
                 Jdagger::Vector=dagger.(J),
                 fout::Union{Function,Nothing}=nothing,
-                kwargs...)
+                kwargs...) where B<:Basis
     t,u = timeevolution.master([0., Inf], rho0, H, J; rates=rates, Jdagger=Jdagger,
                         hmin=hmin, hmax=Inf,
                         display_initialvalue=false,
@@ -72,7 +72,7 @@ function liouvillianspectrum(L::SparseSuperOperator; nev::Int = min(10, length(L
     d, v, nconv, niter, nmult, resid = try
         eigs(L.data; nev = nev, which = which, kwargs...)
     catch err
-        if isa(err, SingularException) || isa(err, ARPACKException)
+        if isa(err, SingularException) || isa(err, Arpack.ARPACKException)
             error("Arpack's eigs() algorithm failed; try using DenseOperators or change nev.")
         else
             rethrow(err)
@@ -88,7 +88,7 @@ function liouvillianspectrum(L::SparseSuperOperator; nev::Int = min(10, length(L
     return d[indices], ops
 end
 
-liouvillianspectrum(H::Operator, J::Vector; rates::Union{Vector{Float64}, Matrix{Float64}}=ones(Float64, length(J)), kwargs...) = liouvillianspectrum(liouvillian(H, J; rates=rates); kwargs...)
+liouvillianspectrum(H::AbstractOperator{B,B}, J::Vector; rates::Union{Vector{Float64}, Matrix{Float64}}=ones(Float64, length(J)), kwargs...) where B<:Basis = liouvillianspectrum(liouvillian(H, J; rates=rates); kwargs...)
 
 """
     steadystate.eigenvector(L)
@@ -118,7 +118,7 @@ function eigenvector(L::SuperOperator; tol::Real = 1e-9, nev::Int = 2, which::Sy
     return ops[1]/tr(ops[1])
 end
 
-eigenvector(H::Operator, J::Vector; rates::Union{Vector{Float64}, Matrix{Float64}}=ones(Float64, length(J)), kwargs...) = eigenvector(liouvillian(H, J; rates=rates); kwargs...)
+eigenvector(H::AbstractOperator, J::Vector; rates::Union{Vector{Float64}, Matrix{Float64}}=ones(Float64, length(J)), kwargs...) = eigenvector(liouvillian(H, J; rates=rates); kwargs...)
 
 
 end # module

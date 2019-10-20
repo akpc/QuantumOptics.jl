@@ -1,15 +1,9 @@
-module spectralanalysis
-
-export eigenstates, eigenenergies, simdiag
-
-using ..bases, ..states, ..operators, ..operators_dense, ..operators_sparse
-using Arpack, LinearAlgebra
-
+using Arpack
 
 const nonhermitian_warning = "The given operator is not hermitian. If this is due to a numerical error make the operator hermitian first by calculating (x+dagger(x))/2 first."
 
 """
-    eigenstates(op::Operator[, n::Int; warning=true])
+    eigenstates(op::AbstractOperator[, n::Int; warning=true])
 
 Calculate the lowest n eigenvalues and their corresponding eigenstates.
 
@@ -33,7 +27,7 @@ function eigenstates(op::DenseOperator, n::Int=length(basis(op)); warning=true)
         states = [Ket(b, V[:, k]) for k=1:length(D)]
         return D, states
     else
-        warning && warn(nonhermitian_warning)
+        warning && @warn(nonhermitian_warning)
         D, V = eigen(op.data)
         states = [Ket(b, V[:, k]) for k=1:length(D)]
         perm = sortperm(D, by=real)
@@ -50,7 +44,7 @@ function eigenstates(op::SparseOperator, n::Int=6; warning::Bool=true,
         info::Bool=true, kwargs...)
     b = basis(op)
     # TODO: Change to sparese-Hermitian specific algorithm if more efficient
-    ishermitian(op) || (warning && warn(nonhermitian_warning))
+    ishermitian(op) || (warning && @warn(nonhermitian_warning))
     info && println("INFO: Defaulting to sparse diagonalization.
         If storing the full operator is possible, it might be faster to do
         eigenstates(dense(op)). Set info=false to turn off this message.")
@@ -61,7 +55,7 @@ end
 
 
 """
-    eigenenergies(op::Operator[, n::Int; warning=true])
+    eigenenergies(op::AbstractOperator[, n::Int; warning=true])
 
 Calculate the lowest n eigenvalues.
 
@@ -79,7 +73,7 @@ function eigenenergies(op::DenseOperator, n::Int=length(basis(op)); warning=true
         D = eigvals(Hermitian(op.data), 1:n)
         return D
     else
-        warning && warn(nonhermitian_warning)
+        warning && @warn(nonhermitian_warning)
         D = eigvals(op.data)
         sort!(D, by=real)
         return D[1:n]
@@ -92,9 +86,9 @@ For sparse operators by default it only returns the 6 lowest eigenvalues.
 eigenenergies(op::SparseOperator, n::Int=6; kwargs...) = eigenstates(op, n; kwargs...)[1]
 
 
-arithmetic_unary_error = operators.arithmetic_unary_error
-eigenstates(op::Operator, n::Int=0) = arithmetic_unary_error("eigenstates", op)
-eigenenergies(op::Operator, n::Int=0) = arithmetic_unary_error("eigenenergies", op)
+arithmetic_unary_error = QuantumOpticsBase.arithmetic_unary_error
+eigenstates(op::AbstractOperator, n::Int=0) = arithmetic_unary_error("eigenstates", op)
+eigenenergies(op::AbstractOperator, n::Int=0) = arithmetic_unary_error("eigenenergies", op)
 
 
 """
@@ -141,5 +135,3 @@ function simdiag(ops::Vector{T}; atol::Real=1e-14, rtol::Real=1e-14) where T<:De
     evals_sorted = [real(evals[i][index]) for i=1:length(ops)]
     return evals_sorted, v[:, index]
 end
-
-end # module
